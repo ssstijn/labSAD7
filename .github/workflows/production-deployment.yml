@@ -5,7 +5,9 @@ on:
     branches:
       - production
       - staging
-
+permissions:  
+  id-token: write  # 🔥 Geeft toegang tot OIDC-token  
+  contents: read  # Nodig voor repo-lezen
 jobs:
   build:
     runs-on: ubuntu-latest
