@@ -30,7 +30,7 @@ jobs:
         run: dotnet publish -c Release -o ./publish
 
       - name: Controleer of de publish-map bestaat
-        run: ls -R ./publish || echo "Publish map is leeg!"
+        run: ls -R ./publish || echo "⚠️ Publish map is leeg!"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -50,7 +50,15 @@ jobs:
           path: ./publish
 
       - name: Controleer of de artifact is gedownload
-        run: ls -R ./publish || echo "Artifact niet gevonden!"
+        run: ls -R ./publish || echo "⚠️ Artifact niet gevonden!"
+
+      # 📌 Nieuwe stap: Maak een ZIP-bestand van de publish-map
+      - name: Maak een ZIP van de publish-map
+        run: zip -r app.zip ./publish/*
+
+      # 📌 Controleer of het ZIP-bestand correct is gemaakt
+      - name: Controleer of de ZIP is aangemaakt
+        run: ls -lh app.zip || echo "⚠️ ZIP-bestand ontbreekt!"
 
       - name: Azure Login
         uses: azure/login@v1
@@ -59,9 +67,10 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # 📌 Pas deployment aan om ZIP te gebruiken
       - name: Deploy to Azure Web App
         run: |
           az webapp deploy --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PRODUCTION }} \
                           --name ${{ secrets.AZURE_WEBAPP_NAME_PRODUCTION }} \
                           --type zip \
-                          --src-path ./publish
+                          --src-path app.zip
