@@ -4,8 +4,9 @@ on:
   push:
     branches:
       - production
+
 permissions:
-  id-token: write 
+  id-token: write
 
 jobs:
   build:
@@ -27,10 +28,22 @@ jobs:
       run: dotnet build --no-restore --configuration Release
     
     - name: Publish project
-      run: dotnet publish --no-build --configuration Release --output ./publish
+      run: dotnet publish --no-build --configuration Release --output ${{ github.workspace }}/publish
+
+    # ✅ Debugging-stap: Controleer of de map bestaat
+    - name: Controleer of de map publish bestaat
+      run: ls -R ${{ github.workspace }}/publish
     
+    # ✅ Debugging-stap: Zoek of publish ergens anders is
+    - name: Zoek de publish map
+      run: find . -type d -name "publish"
+    
+    # ✅ Zorg dat de map toegankelijk is
+    - name: Fix rechten op de publish map
+      run: chmod -R 755 ${{ github.workspace }}/publish
+
     - name: Create zip file
-      run: zip -r release.zip ./publish
+      run: zip -r release.zip ${{ github.workspace }}/publish
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -48,6 +61,9 @@ jobs:
       with:
         name: production-release
     
+    - name: Extract artifact
+      run: unzip release.zip
+
     - name: Azure Login
       uses: azure/login@v2
       with:
@@ -57,8 +73,7 @@ jobs:
     
     - name: Deploy to Azure Web App
       run: |
-        unzip release.zip
         az webapp deploy \
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PRODUCTION }} \
           --name ${{ secrets.AZURE_WEBAPP_NAME_PRODUCTION }} \
-          --src-path ./publish
+          --src-path ${{ github.workspace }}/publish
