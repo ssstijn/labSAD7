@@ -11,66 +11,54 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-    
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
-    
+
     - name: Restore dependencies
       run: dotnet restore
-    
+
     - name: Build project
       run: dotnet build --no-restore --configuration Release
-    
+
     - name: Publish project
       run: dotnet publish --no-build --configuration Release --output ${{ github.workspace }}/publish
 
-    # ✅ Debugging-stap: Controleer of de map bestaat
-    - name: Controleer of de map publish bestaat
-      run: ls -R ${{ github.workspace }}/publish
-    
-    # ✅ Debugging-stap: Zoek of publish ergens anders is
-    - name: Zoek de publish map
-      run: find . -type d -name "publish"
-    
-    # ✅ Zorg dat de map toegankelijk is
-    - name: Fix rechten op de publish map
-      run: chmod -R 755 ${{ github.workspace }}/publish
-
     - name: Create zip file
-      run: zip -r release.zip ${{ github.workspace }}/publish
-    
+      run: zip -r ${{ github.workspace }}/release.zip ${{ github.workspace }}/publish
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: production-release
-        path: release.zip
+        path: ${{ github.workspace }}/release.zip
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Download artifact
       uses: actions/download-artifact@v4
       with:
         name: production-release
-    
-    - name: Extract artifact
-      run: unzip release.zip
 
-    - name: Azure Login
+    - name: Extract artifact
+      run: unzip ${{ github.workspace }}/production-release.zip -d ${{ github.workspace }}/publish
+
+    - name: Azure Login using OpenID (Entra ID)
       uses: azure/login@v2
       with:
         client-id: ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-    
+
     - name: Deploy to Azure Web App
       run: |
         az webapp deploy \
