@@ -1,67 +1,56 @@
-name: Production Deployment Workflow
+name: Deploy to Azure App Service
 
 on:
   push:
     branches:
       - production
-
-permissions:
-  id-token: write
+      - staging
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore dependencies
+        run: dotnet restore
 
-    - name: Build project
-      run: dotnet build --no-restore --configuration Release
+      - name: Build and publish
+        run: dotnet publish -c Release -o ./publish
 
-    - name: Publish project
-      run: dotnet publish --no-build --configuration Release --output ${{ github.workspace }}/publish
-
-    - name: Create zip file
-      run: zip -r ${{ github.workspace }}/release.zip ${{ github.workspace }}/publish
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: production-release
-        path: ${{ github.workspace }}/release.zip
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: app
+          path: ./publish
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-    - name: Download artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: production-release
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: app
+          path: ./publish
 
-    - name: Extract artifact
-      run: unzip ${{ github.workspace }}/production-release.zip -d ${{ github.workspace }}/publish
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-    - name: Azure Login using OpenID (Entra ID)
-      uses: azure/login@v2
-      with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-    - name: Deploy to Azure Web App
-      run: |
-        az webapp deploy \
-          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PRODUCTION }} \
-          --name ${{ secrets.AZURE_WEBAPP_NAME_PRODUCTION }} \
-          --src-path ${{ github.workspace }}/publish
+      - name: Deploy to Azure Web App
+        run: |
+          az webapp deploy --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PRODUCTION }} \
+                          --name ${{ secrets.AZURE_WEBAPP_NAME_PRODUCTION }} \
+                          --src-path ./publish
