@@ -5,9 +5,11 @@ on:
     branches:
       - production
       - staging
+
 permissions:  
-  id-token: write  # 🔥 Geeft toegang tot OIDC-token  
-  contents: read  # Nodig voor repo-lezen
+  id-token: write  # 🔥 Vereist voor OpenID Connect-authenticatie  
+  contents: read  # Nodig om repo-inhoud te lezen  
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,6 +29,9 @@ jobs:
       - name: Build and publish
         run: dotnet publish -c Release -o ./publish
 
+      - name: Controleer of de publish-map bestaat
+        run: ls -R ./publish || echo "Publish map is leeg!"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -44,6 +49,9 @@ jobs:
           name: app
           path: ./publish
 
+      - name: Controleer of de artifact is gedownload
+        run: ls -R ./publish || echo "Artifact niet gevonden!"
+
       - name: Azure Login
         uses: azure/login@v1
         with:
@@ -55,4 +63,5 @@ jobs:
         run: |
           az webapp deploy --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PRODUCTION }} \
                           --name ${{ secrets.AZURE_WEBAPP_NAME_PRODUCTION }} \
+                          --type zip \
                           --src-path ./publish
